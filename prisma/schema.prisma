@@ -1,0 +1,178 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Rol {
+  id String @id @default(uuid())
+  name String @unique
+  description String?
+  permissions Json @default("{}")
+  active Boolean @default(true)
+
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id String @id @default(uuid())
+  name String
+  email String @unique
+  passwordHash String @map("password_hash")
+  avatarUrl String? @map("avatar_url")
+  refreshToken String? @map("refresh_token")
+  lastLogin DateTime? @map("last_login")
+  active Boolean @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  rolId String @map("rol_id")
+  rol Rol @relation(fields: [rolId], references: [id])
+
+  moovements InventoryMovement[]
+  sales Sale[]
+
+  @@map("users")
+}
+
+model Category {
+  id String @id @default(uuid())
+  name String
+  slugg String @unique
+  description String?
+  imageUrl String? @map("image_url")
+  active Boolean @default(true)
+
+  parentId String? @map("parent_id")
+  parent Category? @relation("ChildCategories", fields: [parentId], references: [id])
+  children Category[] @relation("ChildCategories")
+
+  products Product[]
+}
+
+model Provider {
+  id String @id @default(uuid())
+  name String
+  phone String?
+  email String? @unique
+  address String?
+  website String? @map("web_site")
+  notes String?
+  active Boolean @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  products Product[]
+
+  @@map("providers")
+}
+
+model Product{
+  id String @id @default(uuid())
+  code String @unique
+  name String
+  description String?
+  priceCost Decimal @map("price_cost") @db.Decimal(12, 2)
+  priceSale Decimal @map("price_sale") @db.Decimal(12, 2)
+  imageUrl String? @map("image_url")
+  tags String[] @default([])
+  active Boolean @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  categoryId String @map("category_id")
+  category Category @relation(fields: [categoryId], references: [id])
+
+  providerId String @map("provider_id")
+  provider Provider @relation(fields: [providerId], references: [id])
+
+  stock Stock?
+  movements InventoryMovement[]
+  detailsSales SaleDetail[]
+
+  @@map("products")
+}
+
+model Stock {
+  id String @id @default(uuid())
+  quantity Int @default(0)
+  minimumQuantity Int @map("minimum_quantity") @default(0)
+  maximumQuantity Int? @map("maximum_quantity") @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  productId String @unique @map("product_id")
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("stock")
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+model InventoryMovement {
+  id String @id @default(uuid())
+  type MovementType
+  quantity Int
+  notes String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  productId String @map("product_id")
+  product Product @relation(fields: [productId], references: [id])
+
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id])
+  
+  @@map("inventory_movements")
+}
+
+enum SaleStatus {
+  PENDING
+  PAID
+  COMPLETED
+  CANCELED
+  REFOUNDED
+}
+
+model Sale {
+  id String @id @default(uuid())
+  total Decimal @db.Decimal(12, 2)
+  status SaleStatus @default(PENDING)
+  notes String?
+  externalReferences String? @map("external_references")
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id])
+
+  details SaleDetail[]
+
+  @@map("sales")
+}
+
+model SaleDetail {
+  id String @id @default(uuid())
+  quantity Int
+  unitPrice Decimal @map("unit_price") @db.Decimal(12, 2)
+  subtotal Decimal @db.Decimal(12, 2)
+
+  saleId String @map("sale_id")
+  sale Sale @relation(fields: [saleId], references: [id])
+
+  productId String @map("product_id")
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("sale_details")
+}
